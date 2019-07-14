@@ -28,7 +28,6 @@ public class OverworldUI implements ApplicationListener {
         Image main = new Image(new Texture("pokeball.jpg"));
         main.setSize(180,180);
         main.addListener(new InputListener(){
-
             @Override
             public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
                 System.out.println("true");
@@ -53,7 +52,7 @@ public class OverworldUI implements ApplicationListener {
         table.add();
         table.add(main).size(main.getWidth(),main.getHeight());
         stage.addActor(table);
-        //Gdx.input.setInputProcessor(stage);
+        Gdx.input.setInputProcessor(stage);
     }
     public void draw(){
         stage.draw();

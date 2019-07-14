@@ -33,6 +33,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Timer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,9 +45,15 @@ public class Battle implements Screen, InputProcessor {
     Array<ModelInstance> instanceArray;
     Environment environment;
     Model model;
+    ModelInstance player;
+    ModelInstance enemy;
     ModelInstance ground;
+    btCollisionShape playerShape;
+    btCollisionShape enemyShape;
     btCollisionShape groundShape;
     btCollisionObject groundObject;
+    btCollisionObject playerObject;
+    btCollisionObject enemyObject;
     btCollisionConfiguration collisionConfiguration;
     btDispatcher dispatcher;
     BattleUI battleUI;
@@ -104,19 +111,44 @@ public class Battle implements Screen, InputProcessor {
         modelBuilder.begin();
         modelBuilder.node().id="ground";
         modelBuilder.part("box",GL20.GL_TRIANGLES, VertexAttributes.Usage.Position| VertexAttributes.Usage.TextureCoordinates| VertexAttributes.Usage.Normal,new Material(TextureAttribute.createDiffuse(new Texture("grass.jpg")))).box(70f,1f,70f);
+        modelBuilder.node().id="player";
+        modelBuilder.part("box",GL20.GL_TRIANGLES,VertexAttributes.Usage.Position| VertexAttributes.Usage.TextureCoordinates| VertexAttributes.Usage.Normal,new Material(TextureAttribute.createDiffuse(new Texture("Amph.png")))).box(20f,10f,10f);
+        modelBuilder.node().id="enemy";
+        modelBuilder.part("box",GL20.GL_TRIANGLES,VertexAttributes.Usage.Position| VertexAttributes.Usage.TextureCoordinates| VertexAttributes.Usage.Normal,new Material(TextureAttribute.createDiffuse(new Texture("Bidoof.png")))).box(20f,30f,10f);
         model = modelBuilder.end();
         ground = new ModelInstance(model,"ground");
+        player = new ModelInstance(model,"player");
+        enemy = new ModelInstance(model,"enemy");
         instanceArray = new Array<ModelInstance>();
         instanceArray.add(ground);
+        instanceArray.add(player);
+        instanceArray.add(enemy);
         groundShape = new btBoxShape(new Vector3(5f,0.5f,5f));
         groundObject = new btCollisionObject();
+        playerShape = new btBoxShape(new Vector3(5f,1f,5f));
+        playerObject = new btCollisionObject();
+        enemyShape = new btBoxShape(new Vector3(5f,1f,5f));
+        enemyObject = new btCollisionObject();
+        Vector3 enemyPos = new Vector3(20f,2f,10f);
+        enemy.transform.setTranslation(enemyPos);
         collisionConfiguration = new btDefaultCollisionConfiguration();
         dispatcher = new btCollisionDispatcher(collisionConfiguration);
         battleUI = new BattleUI();
-        perspectiveCamera.position.set(0f,10f,-10f);
+        perspectiveCamera.position.set(-30,10f,10f);
         perspectiveCamera.rotate(-80,0,1,0);
         perspectiveCamera.update();
         write("Atakuje cie dziki "+pokemon2.getName());
+    }
+    public void moveCameraToEnemy(){
+        Vector3 test = new Vector3();
+        test = perspectiveCamera.position;
+        perspectiveCamera.translate(enemy.transform.getTranslation(new Vector3()));
+        Timer.schedule(new Timer.Task() {
+            @Override
+            public void run() {
+                perspectiveCamera.position.sub(enemy.transform.getTranslation(new Vector3()));
+            }
+        },2);
     }
 
     @Override
@@ -130,7 +162,10 @@ public class Battle implements Screen, InputProcessor {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT| GL20.GL_DEPTH_BUFFER_BIT);
         perspectiveCamera.update();
         modelBatch.begin(perspectiveCamera);
-        modelBatch.render(instanceArray,environment);
+        for(int i = 0;i<instanceArray.size;i++){
+            modelBatch.render(instanceArray.get(i),environment);
+
+        }
         modelBatch.end();
         battleUI.draw();
         update();
@@ -252,6 +287,7 @@ public class Battle implements Screen, InputProcessor {
             }else{
                 buff();
             }
+            moveCameraToEnemy();
         }
         if(at2Click){
             at2Click = false;
@@ -347,6 +383,10 @@ public class Battle implements Screen, InputProcessor {
         dispatcher.dispose();
         collisionConfiguration.dispose();
         font.dispose();
+        playerObject.dispose();
+        playerShape.dispose();
+        enemyObject.dispose();
+        enemyShape.dispose();
     }
 
     @Override

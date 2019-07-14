@@ -19,6 +19,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.ai.utils.Ray;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.Texture;
@@ -35,6 +36,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
+import com.badlogic.gdx.math.Intersector;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.bullet.Bullet;
 import com.badlogic.gdx.physics.bullet.collision.CollisionObjectWrapper;
@@ -80,6 +82,7 @@ public class Overworld implements Screen, InputProcessor {
     Vector3 positionGround;
     OverworldUI overworldUI;
     public BitmapFont font;
+    private Vector3 position;
     boolean collision;
     private float x1,y1;
     float distance = 30f;
@@ -90,6 +93,7 @@ public class Overworld implements Screen, InputProcessor {
     float dX;
     float dY;
     final Start game;
+    private int select;
     public Overworld(){
         overworldBatch = new SpriteBatch();
         this.game = new Start();
@@ -97,6 +101,7 @@ public class Overworld implements Screen, InputProcessor {
     public Overworld(final Start game) {
         this.game = game;
         Bullet.init();
+        overworldUI = new OverworldUI();
         InputMultiplexer multiplexer = new InputMultiplexer();
         multiplexer.addProcessor(this);
         multiplexer.addProcessor(overworldUI.stage);
@@ -146,7 +151,6 @@ public class Overworld implements Screen, InputProcessor {
         dispatcher = new btCollisionDispatcher(collisionConfiguration);
         positionBall = ball.transform.getTranslation(new Vector3());
         perspectiveCamera.lookAt(positionBall);
-        overworldUI = new OverworldUI();
     }
 
 
@@ -226,8 +230,23 @@ public class Overworld implements Screen, InputProcessor {
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         x1 = screenX;
         y1 = screenY;
+        com.badlogic.gdx.math.collision.Ray ray = perspectiveCamera.getPickRay(screenX,screenY);
+        System.out.println(ray);
+        System.out.println("kwik");
         return true;
     }
+    /*public int getObject(int screenX, int screenY){
+        com.badlogic.gdx.math.collision.Ray ray = perspectiveCamera.getPickRay(screenX,screenY);
+        int result = -1;
+        float distance = -1;
+        //position = new Vector3();
+        float dist2 = ((com.badlogic.gdx.math.collision.Ray) ray).origin.dst2(instanceArray.get(1).transform.getTranslation(position));
+        if(Intersector.intersectRaySphere(ray,instanceArray.get(1).transform.getTranslation(position),instanceArray.get(1).transform.getTranslation(position).radius,null)){
+            result = 1;
+            distance = dist2;
+        }
+        return result;
+    }*/
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
         return false;
