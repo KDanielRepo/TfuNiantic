@@ -18,6 +18,10 @@ public class BattleUI implements ApplicationListener {
     Stage stage;
     boolean onePress,twoPress,threePress,fourPress;
     OrthographicCamera camera;
+    Image bar;
+    Image enemyBar;
+    boolean at1Click,at2Click,at3Click,at4Click;
+
 
     public Table getTable() {
         return table;
@@ -115,25 +119,111 @@ public class BattleUI implements ApplicationListener {
                 fourPress = false;
             }
         });
+        bar = new Image(new Texture("testBarNew.png"));
+        bar.setSize(700,200);
+        enemyBar = new Image(new Texture("testBarNew.png"));
+        enemyBar.setSize(700,200);
+
+        battle.batch.begin();
+        bar.draw(battle.batch,100f);
+        bar.setPosition(380,220);
+        enemyBar.draw(battle.batch,1f);
+        enemyBar.setPosition(20,1600);
+        battle.batch.end();
+
         table.add();
         table.add();
         table.add();
         table.add();
-        table.row().pad(5,5,5,5);
+        table.row().pad(5,0,0,5);
         table.add(fight).size(fight.getWidth(),fight.getHeight());
         table.add(bag).size(bag.getWidth(),bag.getHeight());
         table.add(pokemon).size(pokemon.getWidth(),pokemon.getHeight());
         table.add(run).size(run.getWidth(),run.getHeight());
-        table.row().padBottom(5);
+        table.row().padBottom(0);
         table.add();
         table.add();
         table.add();
         table.add();
         stage.addActor(table);
+        stage.addActor(bar);
+        stage.addActor(enemyBar);
 
     }
     public void draw(){
         stage.draw();
+    }
+    public void attackDraw(){
+        Image at1 = new Image(new Texture("at1.png"));
+        at1.addListener(new InputListener(){
+            @Override
+            public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                return true;
+            }
+
+            @Override
+            public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
+                at1Click = true;
+            }
+        });
+        Image at2 = new Image(new Texture("at2.png"));
+        at2.addListener(new InputListener(){
+            @Override
+            public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                return true;
+            }
+
+            @Override
+            public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
+                at2Click = true;
+            }
+        });
+        Image at3 = new Image(new Texture("at3.png"));
+        at3.addListener(new InputListener(){
+            @Override
+            public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                return true;
+            }
+
+            @Override
+            public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
+                at3Click = true;
+            }
+        });
+        Image at4 = new Image(new Texture("at4.png"));
+        at4.addListener(new InputListener(){
+            @Override
+            public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+
+                return true;
+            }
+            @Override
+            public void touchUp(InputEvent event, float x, float y, int pointer, int button) {
+                at4Click = true;
+            }
+        });
+        //Skin skin = new Skin(Gdx.files.internal("uiskin.json"));
+        //battleUI.getTable().setSkin(skin);
+        table.clearChildren();
+        table.add();
+        table.add();
+        table.add();
+        table.add();
+        table.pad(5,5,5,5);
+        table.add();
+        table.add();
+        table.add();
+        table.add();
+        table.padBottom(5);
+        table.add(at1).size(270,200);
+        table.add(at2).size(270,200);
+        table.add(at3).size(270,200);
+        table.add(at4).size(270,200);
+    }
+    public void pkmnDraw(){
+
+    }
+    public void bagDraw(){
 
     }
     @Override

@@ -1,25 +1,12 @@
 package com.nigakolczan.tfuniantic;
 
-import android.app.Activity;
-import android.content.Context;
-import android.content.Intent;
-import android.graphics.Color;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.support.v7.app.AppCompatActivity;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
-import android.view.View;
-import android.widget.Button;
-
 import com.badlogic.gdx.ApplicationListener;
-import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.ai.utils.Ray;
+import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.Texture;
@@ -38,6 +25,7 @@ import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.math.Intersector;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.physics.bullet.Bullet;
 import com.badlogic.gdx.physics.bullet.collision.CollisionObjectWrapper;
 import com.badlogic.gdx.physics.bullet.collision.btBoxShape;
@@ -54,6 +42,7 @@ import com.badlogic.gdx.physics.bullet.collision.btManifoldResult;
 import com.badlogic.gdx.physics.bullet.collision.btSphereBoxCollisionAlgorithm;
 import com.badlogic.gdx.physics.bullet.collision.btSphereShape;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Timer;
 
 
 public class Overworld implements Screen, InputProcessor {
@@ -62,7 +51,19 @@ public class Overworld implements Screen, InputProcessor {
     public SpriteBatch getOverworldBatch() {
         return overworldBatch;
     }
-
+    public static class PokemonObject extends ModelInstance {
+        public final Vector3 center = new Vector3();
+        public final Vector3 dimensions = new Vector3();
+        public final float radius;
+        private final static BoundingBox bounds = new BoundingBox();
+        public PokemonObject(Model model, String rootNode, boolean mergeTransform) {
+            super(model,rootNode,mergeTransform);
+            calculateBoundingBox(bounds);
+            bounds.getCenter(center);
+            bounds.getDimensions(dimensions);
+            radius = dimensions.len()/200f;
+        }
+    }
     public SpriteBatch overworldBatch;
     CameraInputController cic;
     ModelBatch modelBatch;
@@ -71,6 +72,7 @@ public class Overworld implements Screen, InputProcessor {
     Model model;
     ModelInstance ground;
     ModelInstance ball;
+    ModelInstance skyBox;
     btCollisionShape groundShape;
     btCollisionShape ballShape;
     btCollisionObject groundObject;
@@ -82,18 +84,23 @@ public class Overworld implements Screen, InputProcessor {
     Vector3 positionGround;
     OverworldUI overworldUI;
     public BitmapFont font;
-    private Vector3 position;
+    private Vector3 position = new Vector3();
+    boolean clicked = false;
     boolean collision;
     private float x1,y1;
     float distance = 30f;
     float angleAroundPlayer = 0;
-    float pitch = 10;
+    float pitch = 20;
     float yaw  = 0;
     float roll;
     float dX;
     float dY;
+    boolean loading;
     final Start game;
-    private int select;
+    private int select = -1;
+    private int selecting = -1;
+    PokemonObject poks;
+    public AssetManager assetManager;
     public Overworld(){
         overworldBatch = new SpriteBatch();
         this.game = new Start();
@@ -103,8 +110,8 @@ public class Overworld implements Screen, InputProcessor {
         Bullet.init();
         overworldUI = new OverworldUI();
         InputMultiplexer multiplexer = new InputMultiplexer();
-        multiplexer.addProcessor(this);
         multiplexer.addProcessor(overworldUI.stage);
+        multiplexer.addProcessor(this);
         Gdx.input.setInputProcessor(multiplexer);
         font = new BitmapFont();
         test = new Texture("texture.png");
@@ -115,9 +122,14 @@ public class Overworld implements Screen, InputProcessor {
         environment.add(new DirectionalLight().set(0.8f,0.8f,0.8f,-1f,-0.8f,-0.2f));
 
         perspectiveCamera = new PerspectiveCamera(67,Gdx.graphics.getWidth(),Gdx.graphics.getHeight());
-        perspectiveCamera.position.set(10f,10f,15f);
+        perspectiveCamera.position.set(10f,30f,15f);
+        perspectiveCamera.near = 0.1f;
+        perspectiveCamera.far = 500f;
 
         perspectiveCamera.update();
+        assetManager = new AssetManager();
+        assetManager.load("data/skydome.g3db",Model.class);
+        assetManager.load("data/garchompF.g3dj",Model.class);
 
         //cic = new CameraInputController(perspectiveCamera);
         //Gdx.input.setInputProcessor(cic);
@@ -125,14 +137,15 @@ public class Overworld implements Screen, InputProcessor {
         ModelBuilder modelBuilder = new ModelBuilder();
         modelBuilder.begin();
         modelBuilder.node().id = "ground";
-        modelBuilder.part("box",GL20.GL_TRIANGLES, VertexAttributes.Usage.Position| VertexAttributes.Usage.TextureCoordinates| VertexAttributes.Usage.Normal,new Material(TextureAttribute.createDiffuse(test))).box(70f,1f,70f);
+        modelBuilder.part("box",GL20.GL_TRIANGLES, VertexAttributes.Usage.Position| VertexAttributes.Usage.TextureCoordinates| VertexAttributes.Usage.Normal,new Material(TextureAttribute.createDiffuse(test))).box(110f,1f,110f);
         modelBuilder.node().id = "ball";
         modelBuilder.part("sphere",GL20.GL_TRIANGLES,VertexAttributes.Usage.Position|VertexAttributes.Usage.Normal| VertexAttributes.Usage.TextureCoordinates,new Material(ColorAttribute.createDiffuse(com.badlogic.gdx.graphics.Color.BLUE))).sphere(1f,1f,1f,10,10);
         model = modelBuilder.end();
 
         ground = new ModelInstance(model,"ground");
         ball = new ModelInstance(model,"ball");
-        ball.transform.setToTranslation(0,9f,0);
+        ground.transform.setToTranslation(0f,20f,0f);
+        ball.transform.setToTranslation(0,21f,0);
 
         instanceArray = new Array<ModelInstance>();
         instanceArray.add(ground);
@@ -151,6 +164,46 @@ public class Overworld implements Screen, InputProcessor {
         dispatcher = new btCollisionDispatcher(collisionConfiguration);
         positionBall = ball.transform.getTranslation(new Vector3());
         perspectiveCamera.lookAt(positionBall);
+        loading = true;
+    }
+    private void doneLoading(){
+        skyBox = new ModelInstance(assetManager.get("data/skydome.g3db",Model.class));
+        Model model1 = assetManager.get("data/garchompF.g3dj",Model.class);
+        String id = model1.nodes.get(0).id;
+        poks = new PokemonObject(model1,id,true);
+        //poks = new ModelInstance(assetManager.get("data/garchomp.g3dj",Model.class));
+        poks.transform.setToTranslation(15,21,-10);
+        poks.transform.scale(0.01f,0.01f,0.01f);
+        poks.dimensions.scl(0.01f,0.01f,0.01f);
+        poks.center.scl(0.01f,0.01f,0.01f);
+        //poks.transform.rotate(0,0,1,90);
+        //poks.transform.rotate(1,0,0,-90);
+        poks.transform.rotate(0,1,0,-90);
+        loading = false;
+    }
+    public int getObject(int screenX,int screenY){
+        com.badlogic.gdx.math.collision.Ray ray = perspectiveCamera.getPickRay(screenX,screenY);
+        int result = -1;
+        float distance = -1;
+        if(poks!=null) {
+            poks.transform.getTranslation(position);
+            position.add(poks.center);
+            float dist2 = ray.origin.dst2(position);
+            /*if(distance >= 0f && dist2 > distance) continue;*/
+            if (Intersector.intersectRaySphere(ray, position, poks.radius, null)) {
+                result = 0;
+                distance = dist2;
+            }
+        }
+        return result;
+
+    }
+    public void setSelected(int value){
+        if(selecting >= 0){
+            modelBatch.dispose();
+            game.setScreen(new Battle(game));
+            dispose();
+        }
     }
 
 
@@ -161,6 +214,8 @@ public class Overworld implements Screen, InputProcessor {
 
     @Override
     public void render(float delta) {
+        if(loading && assetManager.update())
+            doneLoading();
         final float deltaa = Math.min(1f/30f,Gdx.graphics.getDeltaTime());
         if(!collision){
             ball.transform.translate(0f,-deltaa,0f);
@@ -177,9 +232,15 @@ public class Overworld implements Screen, InputProcessor {
             Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT| GL20.GL_DEPTH_BUFFER_BIT);
             modelBatch.begin(perspectiveCamera);
             modelBatch.render(instanceArray,environment);
+            if(skyBox!=null)
+            modelBatch.render(skyBox);
+            if(poks!=null)
+                modelBatch.render(poks);
+            //modelBatch.render(skyBox);
             modelBatch.end();
         }
         overworldUI.draw();
+
     }
 
     @Override
@@ -213,6 +274,7 @@ public class Overworld implements Screen, InputProcessor {
         overworldBatch.dispose();
         overworldUI.dispose();
         font.dispose();
+        assetManager.dispose();
     }
     @Override
     public boolean keyDown(int keycode) {
@@ -230,10 +292,8 @@ public class Overworld implements Screen, InputProcessor {
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         x1 = screenX;
         y1 = screenY;
-        com.badlogic.gdx.math.collision.Ray ray = perspectiveCamera.getPickRay(screenX,screenY);
-        System.out.println(ray);
-        System.out.println("kwik");
-        return true;
+        selecting = getObject(screenX,screenY);
+        return selecting>=0;
     }
     /*public int getObject(int screenX, int screenY){
         com.badlogic.gdx.math.collision.Ray ray = perspectiveCamera.getPickRay(screenX,screenY);
@@ -249,6 +309,11 @@ public class Overworld implements Screen, InputProcessor {
     }*/
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+        if(selecting>=0){
+            setSelected(selecting);
+            selecting = -1;
+            return true;
+        }
         return false;
     }
     @Override
@@ -282,6 +347,26 @@ public class Overworld implements Screen, InputProcessor {
             modelBatch.dispose();
             game.setScreen(new Battle(game));
             dispose();
+        }
+        if(overworldUI.menuTouch){
+            if (clicked){
+                overworldUI.menuOverlayDispose();
+                Timer.schedule(new Timer.Task() {
+                    @Override
+                    public void run() {
+                        clicked = false;
+                    }
+                },0.5f);
+            }else{
+                overworldUI.menuOverlay();
+                Timer.schedule(new Timer.Task() {
+                    @Override
+                    public void run() {
+                        clicked = true;
+                    }
+                },0.5f);
+            }
+
         }
 
     }
